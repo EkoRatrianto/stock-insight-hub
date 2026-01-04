@@ -1,56 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { SearchBar } from '@/components/search/SearchBar';
 import { QuickActions } from '@/components/home/QuickActions';
 import { InsightCard } from '@/components/home/InsightCard';
 import { WatchlistItem } from '@/components/home/WatchlistItem';
 import { Button } from '@/components/ui/button';
-import { Filter, Plus } from 'lucide-react';
-import { mockCompanies, mockWatchlist } from '@/data/mockData';
+import { Filter, Plus, Loader2 } from 'lucide-react';
+import { useStockData, StockQuote } from '@/hooks/useStockData';
+import { WatchlistItem as WatchlistItemType } from '@/types/company';
 
 interface HomePageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
-interface InsightItem {
-  ticker: string;
-  name: string;
-  currentPrice: number;
-  priceChangePercent: number;
-  currency: string;
-  projection?: string;
-  projectionValue?: string;
-  swotHighlight?: string;
-}
+const WATCHLIST_SYMBOLS = ['NVDA', 'TSLA', 'MSFT', 'AMZN'];
+const INSIGHT_SYMBOLS = ['AAPL', 'GOOGL'];
 
 export function HomePage({ onNavigate }: HomePageProps) {
   const [searchValue, setSearchValue] = useState('');
+  const { fetchQuotes, loading } = useStockData();
+  const [watchlistData, setWatchlistData] = useState<WatchlistItemType[]>([]);
+  const [insightData, setInsightData] = useState<StockQuote[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const allSymbols = [...new Set([...WATCHLIST_SYMBOLS, ...INSIGHT_SYMBOLS])];
+      const quotes = await fetchQuotes(allSymbols);
+      
+      if (quotes.length > 0) {
+        const watchlist: WatchlistItemType[] = quotes
+          .filter(q => WATCHLIST_SYMBOLS.includes(q.symbol))
+          .map(q => ({
+            ticker: q.symbol,
+            name: q.name,
+            currentPrice: q.price,
+            priceChangePercent: q.changePercent,
+            rating: q.changePercent > 2 ? 'STRONG' : q.changePercent < -1 ? 'WEAK' : 'HOLD',
+          }));
+        setWatchlistData(watchlist);
+
+        const insights = quotes.filter(q => INSIGHT_SYMBOLS.includes(q.symbol));
+        setInsightData(insights);
+      }
+    };
+    
+    loadData();
+  }, [fetchQuotes]);
 
   const handleQuickAction = (action: string) => {
     if (action === 'new-analysis') {
       onNavigate('search');
     }
   };
-
-  const latestInsights: InsightItem[] = [
-    {
-      ticker: mockCompanies[0].ticker,
-      name: mockCompanies[0].name,
-      currentPrice: mockCompanies[0].currentPrice,
-      priceChangePercent: mockCompanies[0].priceChangePercent,
-      currency: mockCompanies[0].currency,
-      projection: '3Y Projection',
-      projectionValue: '+15% (Bullish)',
-    },
-    {
-      ticker: mockCompanies[4].ticker,
-      name: mockCompanies[4].name,
-      currentPrice: mockCompanies[4].currentPrice,
-      priceChangePercent: mockCompanies[4].priceChangePercent,
-      currency: mockCompanies[4].currency,
-      swotHighlight: 'SWOT Analysis Ready',
-    },
-  ];
 
   return (
     <div className="pb-24 min-h-dvh w-full">
@@ -73,25 +74,41 @@ export function HomePage({ onNavigate }: HomePageProps) {
               View All
             </Button>
           </div>
-          <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4 scrollbar-hide snap-x snap-mandatory">
-            {latestInsights.map((insight) => (
-              <InsightCard
-                key={insight.ticker}
-                ticker={insight.ticker}
-                name={insight.name}
-                price={insight.currentPrice}
-                priceChange={insight.priceChangePercent}
-                projection={insight.projection}
-                projectionValue={insight.projectionValue}
-                swotHighlight={insight.swotHighlight}
-                currency={insight.currency}
-                onClick={() => {
-                  const company = mockCompanies.find(c => c.ticker === insight.ticker);
-                  if (company) onNavigate('analysis', company);
-                }}
-              />
-            ))}
-          </div>
+          {loading && insightData.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4 scrollbar-hide snap-x snap-mandatory">
+              {insightData.map((insight) => (
+                <InsightCard
+                  key={insight.symbol}
+                  ticker={insight.symbol}
+                  name={insight.name}
+                  price={insight.price}
+                  priceChange={insight.changePercent}
+                  projection="Real-time"
+                  projectionValue={`PE: ${insight.pe?.toFixed(1) || 'N/A'}`}
+                  currency="USD"
+                  onClick={() => {
+                    onNavigate('analysis', {
+                      ticker: insight.symbol,
+                      name: insight.name,
+                      exchange: insight.exchange || 'NASDAQ',
+                      sector: insight.sector,
+                      currentPrice: insight.price,
+                      priceChange: insight.change,
+                      priceChangePercent: insight.changePercent,
+                      marketCap: insight.marketCap,
+                      peRatio: insight.pe,
+                      divYield: insight.dividendYield,
+                      currency: insight.currency,
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Watchlist */}
@@ -107,18 +124,29 @@ export function HomePage({ onNavigate }: HomePageProps) {
               </Button>
             </div>
           </div>
-          <div className="space-y-2">
-            {mockWatchlist.map((item) => (
-              <WatchlistItem
-                key={item.ticker}
-                item={item}
-                onClick={() => {
-                  const company = mockCompanies.find(c => c.ticker === item.ticker);
-                  if (company) onNavigate('analysis', company);
-                }}
-              />
-            ))}
-          </div>
+          {loading && watchlistData.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {watchlistData.map((item) => (
+                <WatchlistItem
+                  key={item.ticker}
+                  item={item}
+                  onClick={() => {
+                    onNavigate('analysis', {
+                      ticker: item.ticker,
+                      name: item.name,
+                      currentPrice: item.currentPrice,
+                      priceChangePercent: item.priceChangePercent,
+                      currency: 'USD',
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
