@@ -30,6 +30,21 @@ export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps
   const { addHolding } = usePortfolio();
   const { fetchQuotes } = useStockData();
 
+  const [currency, setCurrency] = useState('USD');
+
+  const getCurrencySymbol = (curr: string) => {
+    const symbols: Record<string, string> = {
+      'USD': '$',
+      'IDR': 'Rp',
+      'EUR': '€',
+      'GBP': '£',
+      'JPY': '¥',
+      'SGD': 'S$',
+      'HKD': 'HK$',
+    };
+    return symbols[curr] || curr + ' ';
+  };
+
   const handleSearch = async () => {
     if (!ticker.trim()) return;
     
@@ -39,9 +54,10 @@ export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps
       if (quotes.length > 0) {
         setName(quotes[0].name);
         setPrice(quotes[0].price.toString());
+        setCurrency(quotes[0].currency || 'USD');
         toast({
           title: 'Ditemukan',
-          description: `${quotes[0].name} - $${quotes[0].price.toFixed(2)}`,
+          description: `${quotes[0].name} - ${getCurrencySymbol(quotes[0].currency || 'USD')}${quotes[0].price.toLocaleString()}`,
         });
       } else {
         toast({
@@ -75,7 +91,8 @@ export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps
       ticker.toUpperCase(),
       name,
       parseFloat(quantity),
-      parseFloat(price)
+      parseFloat(price),
+      currency
     );
 
     if (error) {
@@ -94,6 +111,7 @@ export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps
       setQuantity('');
       setPrice('');
       setName('');
+      setCurrency('USD');
       onHoldingAdded?.();
     }
     
@@ -160,7 +178,7 @@ export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price">Harga Beli ($)</Label>
+              <Label htmlFor="price">Harga Beli ({getCurrencySymbol(currency).trim()})</Label>
               <Input
                 id="price"
                 type="number"
