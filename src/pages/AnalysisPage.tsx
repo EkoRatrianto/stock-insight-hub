@@ -13,6 +13,7 @@ import { Company, FinancialData, FinancialRatios } from '@/types/company';
 import { mockProjections } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useStockData, SWOTData, StockNews } from '@/hooks/useStockData';
+import { generatePDFContent, downloadAsTextFile } from '@/lib/generatePDF';
 
 interface AnalysisPageProps {
   company: Company;
@@ -166,9 +167,19 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   };
 
   const handleDownloadPDF = () => {
+    const content = generatePDFContent({
+      company: companyData,
+      ratios: latestRatios,
+      swot: swotData,
+      generatedAt: new Date(),
+    });
+    
+    const filename = `${companyData.ticker}_analysis_${new Date().toISOString().split('T')[0]}.txt`;
+    downloadAsTextFile(content, filename);
+    
     toast({
-      title: "Mengunduh Laporan PDF",
-      description: `Laporan analisis ${company.ticker} sedang diproses...`,
+      title: "Laporan Diunduh",
+      description: `Laporan ${companyData.ticker} berhasil diunduh sebagai ${filename}`,
     });
   };
 

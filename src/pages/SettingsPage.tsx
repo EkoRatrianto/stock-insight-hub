@@ -12,9 +12,12 @@ import {
   DollarSign, 
   Moon, 
   Fingerprint,
-  ChevronRight 
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface SettingsPageProps {
   onNavigate: (page: string) => void;
@@ -27,10 +30,33 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     autoSend: true,
     faceId: true,
   });
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
 
   const toggleSetting = (key: keyof typeof settings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Gagal keluar. Coba lagi.',
+      });
+    } else {
+      toast({
+        title: 'Berhasil Keluar',
+        description: 'Sampai jumpa lagi!',
+      });
+      onNavigate('auth');
+    }
+  };
+
+  const userEmail = user?.email || 'user@example.com';
+  const userName = user?.user_metadata?.full_name || userEmail.split('@')[0];
+  const userInitials = userName.slice(0, 2).toUpperCase();
 
   return (
     <div className="pb-20 min-h-screen">
@@ -45,12 +71,12 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
         <Card variant="glass" className="p-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-14 w-14 border-2 border-primary/30">
-              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=eko" />
-              <AvatarFallback className="bg-primary/20 text-primary">ER</AvatarFallback>
+              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userEmail}`} />
+              <AvatarFallback className="bg-primary/20 text-primary">{userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h3 className="font-semibold text-foreground">Eko Ratrianto</h3>
-              <p className="text-sm text-muted-foreground">eko.ratrianto@gmail.com</p>
+              <h3 className="font-semibold text-foreground">{userName}</h3>
+              <p className="text-sm text-muted-foreground">{userEmail}</p>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -117,7 +143,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               <div className="flex-1">
                 <p className="font-medium text-foreground">Email</p>
               </div>
-              <span className="text-sm text-muted-foreground">eko.ratrianto@gmail.com</span>
+              <span className="text-sm text-muted-foreground">{userEmail}</span>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
 
@@ -180,15 +206,20 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
         </section>
 
         {/* Logout */}
-        <Button variant="outline" className="w-full text-destructive border-destructive/30 hover:bg-destructive/10">
+        <Button 
+          variant="outline" 
+          className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
           Keluar
         </Button>
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground py-4">
-          <p>ID: 88492015</p>
+          <p>ID: {user?.id.slice(0, 8) || '00000000'}</p>
           <p>Versi 1.0.4</p>
-          <p>eko.ratrianto@gmail.com</p>
+          <p>{userEmail}</p>
         </div>
       </div>
     </div>
