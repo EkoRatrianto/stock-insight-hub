@@ -4,20 +4,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Trash2, Loader2 } from 'lucide-react';
-import { usePortfolio } from '@/hooks/usePortfolio';
+import { Trash2, Loader2, Pencil } from 'lucide-react';
+import { usePortfolio, PortfolioHolding } from '@/hooks/usePortfolio';
 import { useStockData } from '@/hooks/useStockData';
 import { AddInstrumentDialog } from '@/components/portfolio/AddInstrumentDialog';
+import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
+import { PortfolioPerformanceChart } from '@/components/portfolio/PortfolioPerformanceChart';
 
 interface PortfolioPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
+
+const getCurrencySymbol = (currency: string) => {
+  const symbols: Record<string, string> = {
+    'USD': '$',
+    'IDR': 'Rp',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥',
+    'SGD': 'S$',
+    'HKD': 'HK$',
+  };
+  return symbols[currency] || currency + ' ';
+};
 
 export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
   const { 
     holdings, 
     loading, 
     removeHolding, 
+    updateHolding,
     totalValue, 
     totalCost, 
     totalPL, 
@@ -27,6 +43,8 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
   } = usePortfolio();
   const { fetchQuotes } = useStockData();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<PortfolioHolding | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // Update current prices on mount
   useEffect(() => {
@@ -38,9 +56,9 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
       const quotes = await fetchQuotes(tickers);
       
       if (quotes.length > 0) {
-        const priceMap: Record<string, number> = {};
+        const priceMap: Record<string, { price: number; currency: string }> = {};
         quotes.forEach(q => {
-          priceMap[q.symbol] = q.price;
+          priceMap[q.symbol] = { price: q.price, currency: q.currency || 'USD' };
         });
         await updateCurrentPrices(priceMap);
       }
@@ -74,6 +92,11 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
     return ((getPL(holding) / costBasis) * 100);
   };
 
+  const handleEdit = (holding: PortfolioHolding) => {
+    setEditingHolding(holding);
+    setEditDialogOpen(true);
+  };
+
   return (
     <div className="pb-20 min-h-screen">
       <Header userName="Investor" />
@@ -90,6 +113,13 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
             (${totalPL >= 0 ? '+' : ''}{totalPL.toFixed(2)})
           </Badge>
         </div>
+
+        {/* Performance Chart */}
+        <PortfolioPerformanceChart 
+          holdings={holdings}
+          totalValue={totalValue}
+          totalCost={totalCost}
+        />
 
         {/* Sector Allocation Chart */}
         {sectorData.length > 0 && (
@@ -159,6 +189,7 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
               {holdings.map((holding) => {
                 const pl = getPL(holding);
                 const plPercent = getPLPercent(holding);
+                const currencySymbol = getCurrencySymbol(holding.currency);
                 
                 return (
                   <Card 
@@ -176,33 +207,51 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
                       <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
                         <span className="text-xs font-bold text-primary">{holding.ticker.slice(0, 4)}</span>
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-foreground">{holding.ticker}</p>
-                          <Badge variant="outline" className="text-[10px]">
+                          <p className="font-medium text-foreground truncate">{holding.ticker}</p>
+                          <Badge variant="outline" className="text-[10px] shrink-0">
                             {holding.quantity} lot
                           </Badge>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                            {holding.currency}
+                          </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{holding.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{holding.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Avg: {currencySymbol}{holding.average_price.toLocaleString()}
+                        </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="font-semibold text-foreground">
-                          ${(holding.quantity * holding.current_price).toFixed(2)}
+                          {currencySymbol}{(holding.quantity * holding.current_price).toLocaleString()}
                         </p>
                         <p className={`text-xs ${pl >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {pl >= 0 ? '+' : ''}{plPercent.toFixed(2)}% (${pl >= 0 ? '+' : ''}{pl.toFixed(2)})
+                          {pl >= 0 ? '+' : ''}{plPercent.toFixed(2)}%
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="iconSm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeHolding(holding.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="ghost"
+                          size="iconSm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(holding);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="iconSm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeHolding(holding.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 );
@@ -229,6 +278,15 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
           </Card>
         )}
       </div>
+
+      {/* Edit Dialog */}
+      <EditHoldingDialog
+        holding={editingHolding}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={updateHolding}
+        onHoldingUpdated={fetchHoldings}
+      />
     </div>
   );
 }

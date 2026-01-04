@@ -56,7 +56,7 @@ export function usePortfolio() {
 
         const updated = holdings.map(h => 
           h.ticker === ticker 
-            ? { ...h, quantity: newQty, average_price: newAvg, current_price: price }
+            ? { ...h, quantity: newQty, average_price: newAvg, current_price: price, currency }
             : h
         );
         saveHoldings(updated);
@@ -79,6 +79,24 @@ export function usePortfolio() {
     }
   };
 
+  const updateHolding = async (
+    id: string,
+    quantity: number,
+    averagePrice: number
+  ) => {
+    try {
+      const updated = holdings.map(h => 
+        h.id === id 
+          ? { ...h, quantity, average_price: averagePrice }
+          : h
+      );
+      saveHoldings(updated);
+      return { error: null };
+    } catch (err) {
+      return { error: err };
+    }
+  };
+
   const removeHolding = async (id: string) => {
     try {
       const updated = holdings.filter(h => h.id !== id);
@@ -89,12 +107,13 @@ export function usePortfolio() {
     }
   };
 
-  const updateCurrentPrices = async (priceMap: Record<string, number>) => {
+  const updateCurrentPrices = async (priceMap: Record<string, { price: number; currency: string }>) => {
     if (holdings.length === 0) return;
 
     const updated = holdings.map(h => ({
       ...h,
-      current_price: priceMap[h.ticker] || h.current_price,
+      current_price: priceMap[h.ticker]?.price || h.current_price,
+      currency: priceMap[h.ticker]?.currency || h.currency,
     }));
     saveHoldings(updated);
   };
@@ -108,6 +127,7 @@ export function usePortfolio() {
     holdings,
     loading,
     addHolding,
+    updateHolding,
     removeHolding,
     updateCurrentPrices,
     fetchHoldings,
