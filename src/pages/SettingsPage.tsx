@@ -1,8 +1,6 @@
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { 
   FileText, 
   BarChart2, 
@@ -11,14 +9,9 @@ import {
   Send, 
   DollarSign, 
   Moon, 
-  Fingerprint,
-  ChevronRight,
-  LogOut
+  ChevronRight
 } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { ChangePasswordDialog } from '@/components/settings/ChangePasswordDialog';
 
 interface SettingsPageProps {
   onNavigate: (page: string) => void;
@@ -29,35 +22,11 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
     includeSWOT: true,
     includeProjection: false,
     autoSend: true,
-    faceId: true,
   });
-  const { user, signOut } = useAuth();
-  const { toast } = useToast();
 
   const toggleSetting = (key: keyof typeof settings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const handleLogout = async () => {
-    const { error } = await signOut();
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Gagal keluar. Coba lagi.',
-      });
-    } else {
-      toast({
-        title: 'Berhasil Keluar',
-        description: 'Sampai jumpa lagi!',
-      });
-      onNavigate('auth');
-    }
-  };
-
-  const userEmail = user?.email || 'user@example.com';
-  const userName = user?.user_metadata?.full_name || userEmail.split('@')[0];
-  const userInitials = userName.slice(0, 2).toUpperCase();
 
   return (
     <div className="pb-20 min-h-screen">
@@ -68,21 +37,6 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
       />
       
       <div className="px-4 space-y-6 py-4">
-        {/* Profile Card */}
-        <Card variant="glass" className="p-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 border-2 border-primary/30">
-              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userEmail}`} />
-              <AvatarFallback className="bg-primary/20 text-primary">{userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground">{userName}</h3>
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </Card>
-
         {/* Laporan & Ekspor */}
         <section>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -144,7 +98,7 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               <div className="flex-1">
                 <p className="font-medium text-foreground">Email</p>
               </div>
-              <span className="text-sm text-muted-foreground">{userEmail}</span>
+              <span className="text-sm text-muted-foreground">-</span>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
 
@@ -190,47 +144,12 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
               <span className="text-sm text-muted-foreground">Gelap</span>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>
-
-            <div className="flex items-center gap-4 p-4">
-              <div className="h-9 w-9 rounded-lg bg-destructive/20 flex items-center justify-center">
-                <Fingerprint className="h-5 w-5 text-destructive" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-foreground">FaceID</p>
-              </div>
-              <Switch 
-                checked={settings.faceId} 
-                onCheckedChange={() => toggleSetting('faceId')} 
-              />
-            </div>
           </Card>
         </section>
-
-        {/* Keamanan */}
-        <section>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            KEAMANAN
-          </h3>
-          <Card variant="glass" className="divide-y divide-border">
-            <ChangePasswordDialog />
-          </Card>
-        </section>
-
-        {/* Logout */}
-        <Button 
-          variant="outline" 
-          className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
-          onClick={handleLogout}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Keluar
-        </Button>
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground py-4">
-          <p>ID: {user?.id.slice(0, 8) || '00000000'}</p>
           <p>Versi 1.0.4</p>
-          <p>{userEmail}</p>
         </div>
       </div>
     </div>

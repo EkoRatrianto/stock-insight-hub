@@ -8,14 +8,12 @@ import { Trash2, Loader2 } from 'lucide-react';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStockData } from '@/hooks/useStockData';
 import { AddInstrumentDialog } from '@/components/portfolio/AddInstrumentDialog';
-import { useAuth } from '@/hooks/useAuth';
 
 interface PortfolioPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
 export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
-  const { user } = useAuth();
   const { 
     holdings, 
     loading, 
@@ -75,17 +73,9 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
     return ((getPL(holding) / costBasis) * 100);
   };
 
-  if (!user) {
-    return (
-      <div className="pb-20 min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Silakan login untuk melihat portfolio</p>
-      </div>
-    );
-  }
-
   return (
     <div className="pb-20 min-h-screen">
-      <Header userName={user.email?.split('@')[0] || 'Investor'} />
+      <Header userName="Investor" />
       
       <div className="px-4 space-y-6">
         {/* Portfolio Summary */}

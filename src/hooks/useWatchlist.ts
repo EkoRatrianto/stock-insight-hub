@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
 
 export interface WatchlistItem {
   id: string;
@@ -10,99 +8,73 @@ export interface WatchlistItem {
   added_at: string;
 }
 
+const STORAGE_KEY = 'watchlist_items';
+
 export function useWatchlist() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
 
-  // Fetch watchlist
-  const fetchWatchlist = useCallback(async () => {
-    if (!user) {
-      setWatchlist([]);
-      return;
-    }
-
+  const fetchWatchlist = useCallback(() => {
     setLoading(true);
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('watchlist')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('added_at', { ascending: false });
-
-      if (fetchError) throw fetchError;
-      setWatchlist(data || []);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setWatchlist(JSON.parse(stored));
+      }
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching watchlist:', err);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
-  // Add to watchlist
+  const saveWatchlist = (newWatchlist: WatchlistItem[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newWatchlist));
+    setWatchlist(newWatchlist);
+  };
+
   const addToWatchlist = useCallback(async (ticker: string, name: string, sector?: string) => {
-    if (!user) {
-      return { success: false, error: 'User not authenticated' };
-    }
-
     try {
-      const { error: insertError } = await supabase
-        .from('watchlist')
-        .insert({
-          user_id: user.id,
-          ticker,
-          name,
-          sector: sector || null,
-        });
-
-      if (insertError) {
-        if (insertError.code === '23505') {
-          return { success: false, error: 'Stock already in watchlist' };
-        }
-        throw insertError;
+      const existing = watchlist.find(item => item.ticker === ticker);
+      if (existing) {
+        return { success: false, error: 'Stock already in watchlist' };
       }
 
-      await fetchWatchlist();
+      const newItem: WatchlistItem = {
+        id: crypto.randomUUID(),
+        ticker,
+        name,
+        sector: sector || null,
+        added_at: new Date().toISOString(),
+      };
+
+      saveWatchlist([newItem, ...watchlist]);
       return { success: true };
     } catch (err: any) {
       console.error('Error adding to watchlist:', err);
       return { success: false, error: err.message };
     }
-  }, [user, fetchWatchlist]);
+  }, [watchlist]);
 
-  // Remove from watchlist
   const removeFromWatchlist = useCallback(async (ticker: string) => {
-    if (!user) {
-      return { success: false, error: 'User not authenticated' };
-    }
-
     try {
-      const { error: deleteError } = await supabase
-        .from('watchlist')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('ticker', ticker);
-
-      if (deleteError) throw deleteError;
-
-      await fetchWatchlist();
+      const updated = watchlist.filter(item => item.ticker !== ticker);
+      saveWatchlist(updated);
       return { success: true };
     } catch (err: any) {
       console.error('Error removing from watchlist:', err);
       return { success: false, error: err.message };
     }
-  }, [user, fetchWatchlist]);
+  }, [watchlist]);
 
-  // Check if stock is in watchlist
   const isInWatchlist = useCallback((ticker: string) => {
     return watchlist.some(item => item.ticker === ticker);
   }, [watchlist]);
 
-  // Toggle watchlist
   const toggleWatchlist = useCallback(async (ticker: string, name: string, sector?: string) => {
     if (isInWatchlist(ticker)) {
       return removeFromWatchlist(ticker);
@@ -111,7 +83,6 @@ export function useWatchlist() {
     }
   }, [isInWatchlist, addToWatchlist, removeFromWatchlist]);
 
-  // Fetch on mount and when user changes
   useEffect(() => {
     fetchWatchlist();
   }, [fetchWatchlist]);
