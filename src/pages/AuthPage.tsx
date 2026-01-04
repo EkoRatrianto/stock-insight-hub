@@ -1,58 +1,89 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { BarChart3, Mail, Lock, User, Loader2, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 
 interface AuthPageProps {
   onNavigate: (page: string) => void;
 }
 
-const emailSchema = z.string().email('Email tidak valid');
-const passwordSchema = z.string().min(6, 'Password minimal 6 karakter');
+type AuthMode = 'login' | 'signup' | 'forgot' | 'reset';
+
+const emailSchema = z.string().trim().email('Email tidak valid').max(255, 'Email terlalu panjang');
+const passwordSchema = z.string().min(6, 'Password minimal 6 karakter').max(72, 'Password maksimal 72 karakter');
+const nameSchema = z.string().trim().min(1, 'Nama tidak boleh kosong').max(100, 'Nama terlalu panjang');
 
 export function AuthPage({ onNavigate }: AuthPageProps) {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resetPassword, updatePassword, session } = useAuth();
+
+  // Check if user arrived via password reset link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reset') === 'true' && session) {
+      setMode('reset');
+    }
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: emailResult.error.errors[0].message,
-      });
-      return;
+    // Validate email for all modes except reset
+    if (mode !== 'reset') {
+      const emailResult = emailSchema.safeParse(email);
+      if (!emailResult.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: emailResult.error.errors[0].message,
+        });
+        return;
+      }
     }
 
-    const passwordResult = passwordSchema.safeParse(password);
-    if (!passwordResult.success) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: passwordResult.error.errors[0].message,
-      });
-      return;
+    // Validate password for login, signup, reset
+    if (mode === 'login' || mode === 'signup' || mode === 'reset') {
+      const passwordResult = passwordSchema.safeParse(password);
+      if (!passwordResult.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: passwordResult.error.errors[0].message,
+        });
+        return;
+      }
     }
 
-    if (!isLogin && !fullName.trim()) {
+    // Validate name for signup
+    if (mode === 'signup') {
+      const nameResult = nameSchema.safeParse(fullName);
+      if (!nameResult.success) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: nameResult.error.errors[0].message,
+        });
+        return;
+      }
+    }
+
+    // Validate confirm password for reset
+    if (mode === 'reset' && password !== confirmPassword) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Nama lengkap harus diisi',
+        description: 'Password tidak cocok',
       });
       return;
     }
@@ -60,8 +91,8 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
+      if (mode === 'login') {
+        const { error } = await signIn(email.trim(), password);
         if (error) {
           let message = error.message;
           if (error.message.includes('Invalid login credentials')) {
@@ -79,8 +110,8 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
           });
           onNavigate('home');
         }
-      } else {
-        const { error } = await signUp(email, password, fullName);
+      } else if (mode === 'signup') {
+        const { error } = await signUp(email.trim(), password, fullName.trim());
         if (error) {
           let message = error.message;
           if (error.message.includes('already registered')) {
@@ -98,6 +129,38 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
           });
           onNavigate('home');
         }
+      } else if (mode === 'forgot') {
+        const { error } = await resetPassword(email.trim());
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+          });
+        } else {
+          toast({
+            title: 'Email Terkirim',
+            description: 'Cek inbox email Anda untuk link reset password.',
+          });
+          setMode('login');
+        }
+      } else if (mode === 'reset') {
+        const { error } = await updatePassword(password);
+        if (error) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message,
+          });
+        } else {
+          toast({
+            title: 'Password Diubah',
+            description: 'Password Anda berhasil diperbarui!',
+          });
+          // Clear URL params
+          window.history.replaceState({}, '', window.location.pathname);
+          onNavigate('home');
+        }
       }
     } catch (err) {
       toast({
@@ -107,6 +170,15 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getTitle = () => {
+    switch (mode) {
+      case 'login': return 'Masuk ke Akun';
+      case 'signup': return 'Daftar Akun Baru';
+      case 'forgot': return 'Lupa Password';
+      case 'reset': return 'Reset Password';
     }
   };
 
@@ -124,13 +196,23 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
 
         <Card variant="glass">
           <CardHeader>
-            <CardTitle className="text-center">
-              {isLogin ? 'Masuk ke Akun' : 'Daftar Akun Baru'}
+            <CardTitle className="text-center flex items-center justify-center gap-2">
+              {(mode === 'forgot' || mode === 'reset') && (
+                <Button
+                  variant="ghost"
+                  size="iconSm"
+                  onClick={() => setMode('login')}
+                  className="absolute left-4"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              {getTitle()}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
+              {mode === 'signup' && (
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Nama Lengkap</Label>
                   <div className="relative">
@@ -142,59 +224,109 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="pl-10"
+                      maxLength={100}
                     />
                   </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                  />
+              {mode !== 'reset' && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      maxLength={255}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                  />
+              {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    {mode === 'reset' ? 'Password Baru' : 'Password'}
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      maxLength={72}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {mode === 'reset' && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-10"
+                      maxLength={72}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {mode === 'forgot' && (
+                <p className="text-sm text-muted-foreground">
+                  Masukkan email Anda dan kami akan mengirimkan link untuk reset password.
+                </p>
+              )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLogin ? 'Masuk' : 'Daftar'}
+                {mode === 'login' && 'Masuk'}
+                {mode === 'signup' && 'Daftar'}
+                {mode === 'forgot' && 'Kirim Link Reset'}
+                {mode === 'reset' && 'Simpan Password Baru'}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {isLogin ? 'Belum punya akun?' : 'Sudah punya akun?'}
+            {mode === 'login' && (
+              <div className="mt-4 text-center">
                 <Button
                   variant="link"
-                  className="px-1"
-                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-sm text-muted-foreground p-0 h-auto"
+                  onClick={() => setMode('forgot')}
                 >
-                  {isLogin ? 'Daftar' : 'Masuk'}
+                  Lupa password?
                 </Button>
-              </p>
-            </div>
+              </div>
+            )}
+
+            {(mode === 'login' || mode === 'signup') && (
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}
+                  <Button
+                    variant="link"
+                    className="px-1"
+                    onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                  >
+                    {mode === 'login' ? 'Daftar' : 'Masuk'}
+                  </Button>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
