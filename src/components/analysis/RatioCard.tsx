@@ -15,32 +15,32 @@ export function RatioCard({ label, value, trend, subLabel, onClick }: RatioCardP
     <Card 
       variant="glass" 
       className={cn(
-        "p-4",
-        onClick && "cursor-pointer hover:border-primary/50 transition-colors"
+        "p-3 sm:p-4",
+        onClick && "cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98]"
       )}
       onClick={onClick}
     >
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <div className="flex items-center gap-2">
-        <span className="text-xl font-bold text-foreground">
+      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 line-clamp-2 leading-tight">{label}</p>
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <span className="text-lg sm:text-xl font-bold text-foreground">
           {typeof value === 'number' ? value.toFixed(2) : value}
         </span>
         {trend && trend !== 'neutral' && (
           <div className={cn(
-            "p-1 rounded",
+            "p-0.5 sm:p-1 rounded",
             trend === 'up' ? "text-success" : "text-destructive"
           )}>
             {trend === 'up' ? (
-              <TrendingUp className="h-4 w-4" />
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             ) : (
-              <TrendingDown className="h-4 w-4" />
+              <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             )}
           </div>
         )}
       </div>
       {subLabel && (
         <p className={cn(
-          "text-xs mt-1",
+          "text-[10px] sm:text-xs mt-0.5 sm:mt-1",
           trend === 'up' ? "text-success" : trend === 'down' ? "text-destructive" : "text-muted-foreground"
         )}>
           {subLabel}

@@ -17,7 +17,7 @@ const navItems = [
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-pb">
-      <div className="flex items-center justify-around px-2 py-1">
+      <div className="flex items-center justify-around px-1 py-1 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -28,10 +28,10 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               variant={isActive ? 'navActive' : 'nav'}
               size="nav"
               onClick={() => onTabChange(item.id)}
-              className="min-w-[60px]"
+              className="flex-1 min-w-0 max-w-[72px] touch-target"
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px]">{item.label}</span>
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="text-[10px] truncate">{item.label}</span>
             </Button>
           );
         })}
