@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart3, Mail, Lock, User, Loader2, ArrowLeft } from 'lucide-react';
+import { BarChart3, Mail, Lock, User, Loader2, ArrowLeft, Chrome } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { z } from 'zod';
 
 interface AuthPageProps {
@@ -26,7 +27,8 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { signIn, signUp, resetPassword, updatePassword, session } = useAuth();
+  const { signIn, signUp, resetPassword, updatePassword, signInWithOAuth, session } = useAuth();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Check if user arrived via password reset link
   useEffect(() => {
@@ -300,6 +302,43 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
                 {mode === 'reset' && 'Simpan Password Baru'}
               </Button>
             </form>
+
+            {(mode === 'login' || mode === 'signup') && (
+              <>
+                <div className="relative my-6">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                    atau
+                  </span>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={async () => {
+                    setIsGoogleLoading(true);
+                    const { error } = await signInWithOAuth('google');
+                    if (error) {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: error.message,
+                      });
+                    }
+                    setIsGoogleLoading(false);
+                  }}
+                  disabled={isGoogleLoading}
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Chrome className="mr-2 h-4 w-4" />
+                  )}
+                  Lanjutkan dengan Google
+                </Button>
+              </>
+            )}
 
             {mode === 'login' && (
               <div className="mt-4 text-center">

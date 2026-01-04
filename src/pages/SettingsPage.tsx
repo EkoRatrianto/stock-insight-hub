@@ -18,6 +18,7 @@ import {
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { ChangePasswordDialog } from '@/components/settings/ChangePasswordDialog';
 
 interface SettingsPageProps {
   onNavigate: (page: string) => void;
@@ -202,6 +203,16 @@ export function SettingsPage({ onNavigate }: SettingsPageProps) {
                 onCheckedChange={() => toggleSetting('faceId')} 
               />
             </div>
+          </Card>
+        </section>
+
+        {/* Keamanan */}
+        <section>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            KEAMANAN
+          </h3>
+          <Card variant="glass" className="divide-y divide-border">
+            <ChangePasswordDialog />
           </Card>
         </section>
 
