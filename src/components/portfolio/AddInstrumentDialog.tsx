@@ -14,7 +14,11 @@ import { useToast } from '@/hooks/use-toast';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStockData } from '@/hooks/useStockData';
 
-export function AddInstrumentDialog() {
+interface AddInstrumentDialogProps {
+  onHoldingAdded?: () => void;
+}
+
+export function AddInstrumentDialog({ onHoldingAdded }: AddInstrumentDialogProps) {
   const [open, setOpen] = useState(false);
   const [ticker, setTicker] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -90,6 +94,7 @@ export function AddInstrumentDialog() {
       setQuantity('');
       setPrice('');
       setName('');
+      onHoldingAdded?.();
     }
     
     setIsLoading(false);

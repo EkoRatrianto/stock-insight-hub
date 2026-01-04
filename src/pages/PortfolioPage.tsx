@@ -22,7 +22,8 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
     totalCost, 
     totalPL, 
     totalPLPercent,
-    updateCurrentPrices 
+    updateCurrentPrices,
+    fetchHoldings
   } = usePortfolio();
   const { fetchQuotes } = useStockData();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -142,7 +143,7 @@ export function PortfolioPage({ onNavigate }: PortfolioPageProps) {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-heading font-semibold text-foreground">Holdings</h3>
-            <AddInstrumentDialog />
+            <AddInstrumentDialog onHoldingAdded={fetchHoldings} />
           </div>
 
           {loading || isUpdating ? (
