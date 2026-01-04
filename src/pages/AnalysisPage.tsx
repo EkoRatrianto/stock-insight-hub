@@ -143,14 +143,23 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
     }
   }, [company.name, company.ticker, company.sector, companyData.currentPrice, companyData.priceChangePercent, fetchSWOT, isLoading]);
 
-  const latestRatios = ratios[ratios.length - 1] || {
+  const defaultRatios = {
     roe: 0, roa: 0, debtToEquity: 0, currentRatio: 0, netProfitMargin: 0,
     assetTurnover: 0, financialLeverage: 0, peRatio: 0, pbRatio: 0, year: 0
   };
+  const latestRatios = ratios[ratios.length - 1] || defaultRatios;
   const previousRatios = ratios[ratios.length - 2] || latestRatios;
 
-  const getRatioTrend = (current: number, previous: number, inverse: boolean = false) => {
-    const diff = current - previous;
+  // Helper to safely format numbers
+  const safeToFixed = (value: number | null | undefined, decimals: number = 1): string => {
+    if (value === null || value === undefined || isNaN(value)) return '0';
+    return value.toFixed(decimals);
+  };
+
+  const getRatioTrend = (current: number | undefined, previous: number | undefined, inverse: boolean = false) => {
+    const curr = current ?? 0;
+    const prev = previous ?? 0;
+    const diff = curr - prev;
     if (Math.abs(diff) < 0.01) return 'neutral';
     if (inverse) return diff > 0 ? 'down' : 'up';
     return diff > 0 ? 'up' : 'down';
@@ -170,7 +179,7 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
     });
   };
 
-  const aiInsight = `Analisis real-time untuk ${companyData.name}. ROE saat ini ${latestRatios.roe.toFixed(1)}% dengan P/E ratio ${latestRatios.peRatio.toFixed(1)}. Margin laba bersih berada di ${latestRatios.netProfitMargin.toFixed(1)}%.`;
+  const aiInsight = `Analisis real-time untuk ${companyData.name}. ROE saat ini ${safeToFixed(latestRatios.roe)}% dengan P/E ratio ${safeToFixed(latestRatios.peRatio)}. Margin laba bersih berada di ${safeToFixed(latestRatios.netProfitMargin)}%.`;
 
   return (
     <div className="pb-32 min-h-dvh w-full">
@@ -209,23 +218,23 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <RatioCard
                   label="ROE (Return on Equity)"
-                  value={`${latestRatios.roe.toFixed(0)}%`}
+                  value={`${safeToFixed(latestRatios.roe, 0)}%`}
                   trend={getRatioTrend(latestRatios.roe, previousRatios.roe)}
                   onClick={() => onNavigate('ratio-detail', { ratio: 'roe', company: companyData })}
                 />
                 <RatioCard
                   label="Debt to Equity"
-                  value={latestRatios.debtToEquity.toFixed(2)}
+                  value={safeToFixed(latestRatios.debtToEquity, 2)}
                   trend={getRatioTrend(latestRatios.debtToEquity, previousRatios.debtToEquity, true)}
                 />
                 <RatioCard
                   label="Net Profit Margin"
-                  value={`${latestRatios.netProfitMargin.toFixed(1)}%`}
+                  value={`${safeToFixed(latestRatios.netProfitMargin)}%`}
                   trend={getRatioTrend(latestRatios.netProfitMargin, previousRatios.netProfitMargin)}
                 />
                 <RatioCard
                   label="P/E Ratio"
-                  value={latestRatios.peRatio.toFixed(1)}
+                  value={safeToFixed(latestRatios.peRatio)}
                   trend="neutral"
                 />
               </div>
