@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 export function useAuth() {
@@ -72,6 +72,18 @@ export function useAuth() {
     return { data, error };
   };
 
+  const signInWithOAuth = async (provider: Provider) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+    return { data, error };
+  };
+
   return {
     user,
     session,
@@ -81,5 +93,6 @@ export function useAuth() {
     signOut,
     resetPassword,
     updatePassword,
+    signInWithOAuth,
   };
 }
