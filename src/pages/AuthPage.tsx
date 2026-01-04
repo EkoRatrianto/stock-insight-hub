@@ -320,10 +320,14 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
                     setIsGoogleLoading(true);
                     const { error } = await signInWithOAuth('google');
                     if (error) {
+                      let message = error.message;
+                      if (error.message.includes('provider is not enabled')) {
+                        message = 'Login dengan Google belum diaktifkan. Silakan hubungi administrator.';
+                      }
                       toast({
                         variant: 'destructive',
-                        title: 'Error',
-                        description: error.message,
+                        title: 'Login Google Gagal',
+                        description: message,
                       });
                     }
                     setIsGoogleLoading(false);
