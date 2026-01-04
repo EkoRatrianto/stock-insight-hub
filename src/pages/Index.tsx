@@ -80,8 +80,10 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {renderPage()}
+    <div className="min-h-dvh bg-background flex flex-col w-full max-w-screen overflow-x-hidden">
+      <main className="flex-1 w-full">
+        {renderPage()}
+      </main>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );

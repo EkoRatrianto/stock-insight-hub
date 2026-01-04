@@ -53,10 +53,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
   ];
 
   return (
-    <div className="pb-20 min-h-screen">
+    <div className="pb-24 min-h-dvh w-full">
       <Header userName="Analyst" />
       
-      <div className="px-4 space-y-6">
+      <div className="px-3 sm:px-4 space-y-5 pb-4">
         <SearchBar
           value={searchValue}
           onChange={setSearchValue}
@@ -67,13 +67,13 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
         {/* Latest Insights */}
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-semibold text-foreground">Latest Insights</h2>
-            <Button variant="link" className="text-primary text-sm p-0 h-auto">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-heading font-semibold text-foreground text-sm sm:text-base">Latest Insights</h2>
+            <Button variant="link" className="text-primary text-xs sm:text-sm p-0 h-auto">
               View All
             </Button>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4 scrollbar-hide snap-x snap-mandatory">
             {latestInsights.map((insight) => (
               <InsightCard
                 key={insight.ticker}
@@ -96,13 +96,13 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
         {/* Watchlist */}
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-semibold text-foreground">Watchlist</h2>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-heading font-semibold text-foreground text-sm sm:text-base">Watchlist</h2>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Filter className="h-4 w-4 text-muted-foreground" />
               </Button>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </Button>
             </div>

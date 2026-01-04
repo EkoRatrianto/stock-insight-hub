@@ -48,7 +48,7 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   const aiInsight = `ROE meningkat terutama karena peningkatan Net Profit Margins di Q3, didorong oleh pemotongan biaya di rantai pasokan. Leverage tetap stabil, menunjukkan pertumbuhan organik daripada ekspansi yang didanai hutang.`;
 
   return (
-    <div className="pb-24 min-h-screen">
+    <div className="pb-32 min-h-dvh w-full">
       <Header 
         title="Analisis Perusahaan" 
         showBack 
@@ -56,7 +56,7 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
         onBack={() => onNavigate('home')} 
       />
       
-      <div className="px-4 space-y-6 py-4">
+      <div className="px-3 sm:px-4 space-y-4 sm:space-y-6 py-3 sm:py-4">
         <CompanyHeader 
           company={company} 
           activeTimeframe={activeTimeframe}
@@ -70,8 +70,8 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
         />
 
         <section>
-          <h3 className="font-heading font-semibold text-foreground mb-3">Tren Rasio Utama</h3>
-          <div className="grid grid-cols-2 gap-3">
+          <h3 className="font-heading font-semibold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Tren Rasio Utama</h3>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <RatioCard
               label="ROE (Return on Equity)"
               value={`${latestRatios.roe.toFixed(0)}%`}
@@ -107,31 +107,33 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
         />
 
         {/* Footer info */}
-        <div className="text-center text-xs text-muted-foreground py-4">
+        <div className="text-center text-[10px] sm:text-xs text-muted-foreground py-3 sm:py-4">
           <p>ID: 89332-{company.ticker}-XE • VER. 2.4.1</p>
           <p>eko.ratrianto@gmail.com</p>
         </div>
       </div>
 
       {/* Fixed bottom button */}
-      <div className="fixed bottom-20 left-4 right-4 flex gap-3">
-        <Button 
-          variant="outline" 
-          size="lg" 
-          className="flex-1"
-          onClick={handleAddToWatchlist}
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add to Watchlist
-        </Button>
-        <Button 
-          size="lg" 
-          className="flex-1"
-          onClick={handleDownloadPDF}
-        >
-          <Download className="h-5 w-5 mr-2" />
-          Unduh Laporan PDF
-        </Button>
+      <div className="fixed bottom-16 left-0 right-0 px-3 sm:px-4 pb-2 pt-2 bg-gradient-to-t from-background via-background to-transparent safe-area-pb">
+        <div className="flex gap-2 sm:gap-3 max-w-lg mx-auto">
+          <Button 
+            variant="outline" 
+            size="default"
+            className="flex-1 h-11 text-xs sm:text-sm"
+            onClick={handleAddToWatchlist}
+          >
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 shrink-0" />
+            <span className="truncate">Watchlist</span>
+          </Button>
+          <Button 
+            size="default"
+            className="flex-1 h-11 text-xs sm:text-sm"
+            onClick={handleDownloadPDF}
+          >
+            <Download className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 shrink-0" />
+            <span className="truncate">Unduh PDF</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

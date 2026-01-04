@@ -19,39 +19,39 @@ export function Header({ title, showBack, showShare, onBack, userName }: HeaderP
 
   if (showBack) {
     return (
-      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-background/95 backdrop-blur-lg border-b border-border/50">
-        <Button variant="ghost" size="icon" onClick={onBack} className="text-muted-foreground">
-          <ChevronLeft className="h-6 w-6" />
+      <header className="sticky top-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-background/95 backdrop-blur-lg border-b border-border/50 safe-area-pt">
+        <Button variant="ghost" size="icon" onClick={onBack} className="text-muted-foreground h-9 w-9 sm:h-10 sm:w-10">
+          <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
         </Button>
-        <h1 className="font-heading font-semibold text-lg">{title}</h1>
+        <h1 className="font-heading font-semibold text-sm sm:text-lg truncate max-w-[60%]">{title}</h1>
         {showShare ? (
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Share2 className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="text-muted-foreground h-9 w-9 sm:h-10 sm:w-10">
+            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         ) : (
-          <div className="w-10" />
+          <div className="w-9 sm:w-10" />
         )}
       </header>
     );
   }
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-background/95 backdrop-blur-lg">
-      <div className="flex items-center gap-3">
-        <Avatar className="h-12 w-12 border-2 border-primary/30">
+    <header className="sticky top-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-background/95 backdrop-blur-lg safe-area-pt">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/30 shrink-0">
           <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=analyst" />
-          <AvatarFallback className="bg-primary/20 text-primary">AN</AvatarFallback>
+          <AvatarFallback className="bg-primary/20 text-primary text-sm sm:text-base">AN</AvatarFallback>
         </Avatar>
-        <div>
-          <h1 className="font-heading font-semibold text-foreground">
+        <div className="min-w-0">
+          <h1 className="font-heading font-semibold text-foreground text-sm sm:text-base truncate">
             Hello, {userName || 'Analyst'}
           </h1>
-          <p className="text-sm text-muted-foreground">{today}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{today}</p>
         </div>
       </div>
-      <Button variant="ghost" size="icon" className="relative text-muted-foreground">
-        <Bell className="h-5 w-5" />
-        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-destructive border-2 border-background" />
+      <Button variant="ghost" size="icon" className="relative text-muted-foreground h-9 w-9 sm:h-10 sm:w-10 shrink-0">
+        <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+        <span className="absolute top-1 right-1 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-destructive border-2 border-background" />
       </Button>
     </header>
   );
