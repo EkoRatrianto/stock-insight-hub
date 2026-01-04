@@ -10,6 +10,7 @@ import { ReportsPage } from '@/pages/ReportsPage';
 import { AuthPage } from '@/pages/AuthPage';
 import { ComparePage } from '@/pages/ComparePage';
 import { ProjectionsPage } from '@/pages/ProjectionsPage';
+import { WatchlistPage } from '@/pages/WatchlistPage';
 import { Company } from '@/types/company';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
@@ -24,7 +25,8 @@ type PageState =
   | { name: 'reports' }
   | { name: 'auth' }
   | { name: 'compare' }
-  | { name: 'projections' };
+  | { name: 'projections' }
+  | { name: 'watchlist' };
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState<PageState>({ name: 'home' });
@@ -83,6 +85,9 @@ const Index = () => {
       case 'projections':
         setCurrentPage({ name: 'projections' });
         break;
+      case 'watchlist':
+        setCurrentPage({ name: 'watchlist' });
+        break;
     }
   };
 
@@ -126,6 +131,8 @@ const Index = () => {
         return <ComparePage onNavigate={handleNavigate} />;
       case 'projections':
         return <ProjectionsPage onNavigate={handleNavigate} />;
+      case 'watchlist':
+        return <WatchlistPage onNavigate={handleNavigate} />;
       default:
         return <HomePage onNavigate={handleNavigate} />;
     }
