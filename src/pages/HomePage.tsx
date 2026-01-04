@@ -5,49 +5,62 @@ import { QuickActions } from '@/components/home/QuickActions';
 import { InsightCard } from '@/components/home/InsightCard';
 import { WatchlistItem } from '@/components/home/WatchlistItem';
 import { Button } from '@/components/ui/button';
-import { Filter, Plus, Loader2 } from 'lucide-react';
+import { Filter, Star, Loader2 } from 'lucide-react';
 import { useStockData, StockQuote } from '@/hooks/useStockData';
 import { WatchlistItem as WatchlistItemType } from '@/types/company';
 import { useAuth } from '@/hooks/useAuth';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 interface HomePageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
-const WATCHLIST_SYMBOLS = ['NVDA', 'TSLA', 'MSFT', 'AMZN'];
 const INSIGHT_SYMBOLS = ['AAPL', 'GOOGL'];
 
 export function HomePage({ onNavigate }: HomePageProps) {
   const [searchValue, setSearchValue] = useState('');
   const { fetchQuotes, loading } = useStockData();
-  const [watchlistData, setWatchlistData] = useState<WatchlistItemType[]>([]);
+  const { watchlist, loading: watchlistLoading } = useWatchlist();
+  const [watchlistQuotes, setWatchlistQuotes] = useState<Map<string, StockQuote>>(new Map());
   const [insightData, setInsightData] = useState<StockQuote[]>([]);
   const { user } = useAuth();
 
+  // Fetch insight data
   useEffect(() => {
-    const loadData = async () => {
-      const allSymbols = [...new Set([...WATCHLIST_SYMBOLS, ...INSIGHT_SYMBOLS])];
-      const quotes = await fetchQuotes(allSymbols);
-      
-      if (quotes.length > 0) {
-        const watchlist: WatchlistItemType[] = quotes
-          .filter(q => WATCHLIST_SYMBOLS.includes(q.symbol))
-          .map(q => ({
-            ticker: q.symbol,
-            name: q.name,
-            currentPrice: q.price,
-            priceChangePercent: q.changePercent,
-            rating: q.changePercent > 2 ? 'STRONG' : q.changePercent < -1 ? 'WEAK' : 'HOLD',
-          }));
-        setWatchlistData(watchlist);
-
-        const insights = quotes.filter(q => INSIGHT_SYMBOLS.includes(q.symbol));
-        setInsightData(insights);
-      }
+    const loadInsights = async () => {
+      const quotes = await fetchQuotes(INSIGHT_SYMBOLS);
+      setInsightData(quotes);
     };
-    
-    loadData();
+    loadInsights();
   }, [fetchQuotes]);
+
+  // Fetch quotes for watchlist items
+  useEffect(() => {
+    const loadWatchlistQuotes = async () => {
+      if (watchlist.length === 0) {
+        setWatchlistQuotes(new Map());
+        return;
+      }
+      const tickers = watchlist.map(item => item.ticker);
+      const quotes = await fetchQuotes(tickers);
+      const quotesMap = new Map<string, StockQuote>();
+      quotes.forEach(q => quotesMap.set(q.symbol, q));
+      setWatchlistQuotes(quotesMap);
+    };
+    loadWatchlistQuotes();
+  }, [watchlist, fetchQuotes]);
+
+  // Convert watchlist to display format
+  const watchlistDisplayData: WatchlistItemType[] = watchlist.slice(0, 4).map(item => {
+    const quote = watchlistQuotes.get(item.ticker);
+    return {
+      ticker: item.ticker,
+      name: item.name,
+      currentPrice: quote?.price || 0,
+      priceChangePercent: quote?.changePercent || 0,
+      rating: (quote?.changePercent || 0) > 2 ? 'STRONG' : (quote?.changePercent || 0) < -1 ? 'WEAK' : 'HOLD',
+    };
+  });
 
   const handleQuickAction = (action: string) => {
     switch (action) {
@@ -62,6 +75,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
         break;
       case 'projections':
         onNavigate('projections');
+        break;
+      case 'watchlist':
+        onNavigate('watchlist');
         break;
     }
   };
@@ -134,32 +150,63 @@ export function HomePage({ onNavigate }: HomePageProps) {
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Filter className="h-4 w-4 text-muted-foreground" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Plus className="h-4 w-4 text-muted-foreground" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => onNavigate('watchlist')}
+              >
+                <Star className="h-4 w-4 text-muted-foreground" />
               </Button>
             </div>
           </div>
-          {loading && watchlistData.length === 0 ? (
+          {(loading || watchlistLoading) && watchlistDisplayData.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
+          ) : watchlistDisplayData.length === 0 ? (
+            <div className="text-center py-8">
+              <Star className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground mb-2">Watchlist kosong</p>
+              <Button variant="outline" size="sm" onClick={() => onNavigate('search')}>
+                Cari Saham
+              </Button>
+            </div>
           ) : (
             <div className="space-y-2">
-              {watchlistData.map((item) => (
+              {watchlistDisplayData.map((item) => (
                 <WatchlistItem
                   key={item.ticker}
                   item={item}
                   onClick={() => {
+                    const quote = watchlistQuotes.get(item.ticker);
                     onNavigate('analysis', {
                       ticker: item.ticker,
                       name: item.name,
+                      exchange: quote?.exchange || '',
+                      sector: quote?.sector || '',
+                      industry: '',
+                      country: '',
                       currentPrice: item.currentPrice,
+                      priceChange: quote?.change || 0,
                       priceChangePercent: item.priceChangePercent,
-                      currency: 'USD',
+                      marketCap: quote?.marketCap || 0,
+                      peRatio: quote?.pe || 0,
+                      divYield: quote?.dividendYield || 0,
+                      currency: quote?.currency || 'USD',
                     });
                   }}
                 />
               ))}
+              {watchlist.length > 4 && (
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-xs"
+                  onClick={() => onNavigate('watchlist')}
+                >
+                  Lihat Semua ({watchlist.length})
+                </Button>
+              )}
             </div>
           )}
         </section>

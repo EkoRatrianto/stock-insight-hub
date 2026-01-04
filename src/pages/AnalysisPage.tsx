@@ -2,17 +2,19 @@ import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { CompanyHeader } from '@/components/analysis/CompanyHeader';
 import { FinancialChart } from '@/components/analysis/FinancialChart';
+import { CandlestickChart } from '@/components/analysis/CandlestickChart';
 import { RatioCard } from '@/components/analysis/RatioCard';
 import { SWOTSection } from '@/components/analysis/SWOTSection';
 import { ProjectionSection } from '@/components/analysis/ProjectionSection';
 import { AIInsightCard } from '@/components/analysis/AIInsightCard';
 import { NewsSection } from '@/components/analysis/NewsSection';
 import { Button } from '@/components/ui/button';
-import { Download, Plus, Loader2 } from 'lucide-react';
+import { Download, Star, Loader2 } from 'lucide-react';
 import { Company, FinancialData, FinancialRatios } from '@/types/company';
 import { mockProjections } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
-import { useStockData, SWOTData, StockNews } from '@/hooks/useStockData';
+import { useStockData, SWOTData, StockNews, StockHistory } from '@/hooks/useStockData';
+import { useWatchlist } from '@/hooks/useWatchlist';
 import { generatePDFContent, downloadAsTextFile } from '@/lib/generatePDF';
 
 interface AnalysisPageProps {
@@ -23,7 +25,8 @@ interface AnalysisPageProps {
 export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   const [activeTimeframe, setActiveTimeframe] = useState('5Y');
   const { toast } = useToast();
-  const { fetchFinancials, fetchQuotes, fetchNews, fetchSWOT } = useStockData();
+  const { fetchFinancials, fetchQuotes, fetchNews, fetchSWOT, fetchHistory } = useStockData();
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
   
   const [financialData, setFinancialData] = useState<FinancialData[]>([]);
   const [ratios, setRatios] = useState<FinancialRatios[]>([]);
@@ -33,6 +36,8 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   const [swotLoading, setSwotLoading] = useState(false);
   const [newsData, setNewsData] = useState<StockNews[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [historyData, setHistoryData] = useState<StockHistory | null>(null);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -112,6 +117,15 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
     loadData();
   }, [company.ticker, fetchFinancials, fetchQuotes]);
 
+  // Fetch history for candlestick chart
+  useEffect(() => {
+    const loadHistory = async () => {
+      const history = await fetchHistory(company.ticker);
+      setHistoryData(history);
+    };
+    loadHistory();
+  }, [company.ticker, fetchHistory]);
+
   // Fetch news separately
   useEffect(() => {
     const loadNews = async () => {
@@ -183,11 +197,25 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
     });
   };
 
-  const handleAddToWatchlist = () => {
-    toast({
-      title: "Ditambahkan ke Watchlist",
-      description: `${company.ticker} berhasil ditambahkan ke watchlist Anda.`,
-    });
+  const inWatchlist = isInWatchlist(company.ticker);
+
+  const handleToggleWatchlist = async () => {
+    setWatchlistLoading(true);
+    const result = await toggleWatchlist(company.ticker, company.name, company.sector);
+    setWatchlistLoading(false);
+    
+    if (result.success) {
+      toast({
+        title: inWatchlist ? "Dihapus dari Watchlist" : "Ditambahkan ke Watchlist",
+        description: `${company.ticker} ${inWatchlist ? 'dihapus dari' : 'ditambahkan ke'} watchlist Anda.`,
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Terjadi kesalahan",
+        variant: "destructive",
+      });
+    }
   };
 
   const aiInsight = `Analisis real-time untuk ${companyData.name}. ROE saat ini ${safeToFixed(latestRatios.roe)}% dengan P/E ratio ${safeToFixed(latestRatios.peRatio)}. Margin laba bersih berada di ${safeToFixed(latestRatios.netProfitMargin)}%.`;
@@ -213,6 +241,11 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
               company={companyData} 
               activeTimeframe={activeTimeframe}
               onTimeframeChange={setActiveTimeframe}
+            />
+
+            <CandlestickChart 
+              data={historyData?.history || []} 
+              symbol={company.ticker}
             />
 
             <FinancialChart 
@@ -275,13 +308,18 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
       <div className="fixed bottom-16 left-0 right-0 px-3 sm:px-4 pb-2 pt-2 bg-gradient-to-t from-background via-background to-transparent safe-area-pb">
         <div className="flex gap-2 sm:gap-3 max-w-lg mx-auto">
           <Button 
-            variant="outline" 
+            variant={inWatchlist ? "default" : "outline"}
             size="default"
             className="flex-1 h-11 text-xs sm:text-sm"
-            onClick={handleAddToWatchlist}
+            onClick={handleToggleWatchlist}
+            disabled={watchlistLoading}
           >
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 shrink-0" />
-            <span className="truncate">Watchlist</span>
+            {watchlistLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <Star className={`h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 shrink-0 ${inWatchlist ? 'fill-current' : ''}`} />
+            )}
+            <span className="truncate">{inWatchlist ? 'Di Watchlist' : 'Watchlist'}</span>
           </Button>
           <Button 
             size="default"
