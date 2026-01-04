@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Filter, Star, Loader2 } from 'lucide-react';
 import { useStockData, StockQuote } from '@/hooks/useStockData';
 import { WatchlistItem as WatchlistItemType } from '@/types/company';
-import { useAuth } from '@/hooks/useAuth';
 import { useWatchlist } from '@/hooks/useWatchlist';
 
 interface HomePageProps {
@@ -23,7 +22,6 @@ export function HomePage({ onNavigate }: HomePageProps) {
   const { watchlist, loading: watchlistLoading } = useWatchlist();
   const [watchlistQuotes, setWatchlistQuotes] = useState<Map<string, StockQuote>>(new Map());
   const [insightData, setInsightData] = useState<StockQuote[]>([]);
-  const { user } = useAuth();
 
   // Fetch insight data
   useEffect(() => {
@@ -82,11 +80,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
     }
   };
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Analyst';
-
   return (
     <div className="pb-24 min-h-dvh w-full">
-      <Header userName={userName} />
+      <Header userName="Analyst" />
       
       <div className="px-3 sm:px-4 space-y-5 pb-4">
         <SearchBar
