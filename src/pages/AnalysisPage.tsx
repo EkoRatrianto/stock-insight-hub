@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { CompanyHeader } from '@/components/analysis/CompanyHeader';
 import { FinancialChart } from '@/components/analysis/FinancialChart';
@@ -7,10 +7,11 @@ import { SWOTSection } from '@/components/analysis/SWOTSection';
 import { ProjectionSection } from '@/components/analysis/ProjectionSection';
 import { AIInsightCard } from '@/components/analysis/AIInsightCard';
 import { Button } from '@/components/ui/button';
-import { Download, Plus } from 'lucide-react';
-import { Company } from '@/types/company';
-import { mockFinancialData, mockRatios, mockSWOT, mockProjections } from '@/data/mockData';
+import { Download, Plus, Loader2 } from 'lucide-react';
+import { Company, FinancialData, FinancialRatios } from '@/types/company';
+import { mockSWOT, mockProjections } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { useStockData, StockFinancials, StockHistory } from '@/hooks/useStockData';
 
 interface AnalysisPageProps {
   company: Company;
@@ -20,9 +21,74 @@ interface AnalysisPageProps {
 export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   const [activeTimeframe, setActiveTimeframe] = useState('5Y');
   const { toast } = useToast();
+  const { fetchFinancials, fetchHistory, fetchQuotes, loading } = useStockData();
+  
+  const [financialData, setFinancialData] = useState<FinancialData[]>([]);
+  const [ratios, setRatios] = useState<FinancialRatios[]>([]);
+  const [companyData, setCompanyData] = useState<Company>(company);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const latestRatios = mockRatios[mockRatios.length - 1];
-  const previousRatios = mockRatios[mockRatios.length - 2];
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      // Fetch latest quote
+      const quotes = await fetchQuotes([company.ticker]);
+      if (quotes.length > 0) {
+        const q = quotes[0];
+        setCompanyData({
+          ...company,
+          currentPrice: q.price,
+          priceChange: q.change,
+          priceChangePercent: q.changePercent,
+          marketCap: q.marketCap,
+          peRatio: q.pe,
+          divYield: q.dividendYield,
+          sector: q.sector || company.sector,
+        });
+      }
+
+      // Fetch financial data
+      const financials = await fetchFinancials(company.ticker);
+      if (financials) {
+        const fData: FinancialData[] = financials.incomeStatements.map((stmt) => ({
+          year: stmt.year,
+          revenue: stmt.revenue / 1000000,
+          netIncome: stmt.netIncome / 1000000,
+          totalAssets: 0,
+          totalEquity: 0,
+          totalDebt: 0,
+          operatingCashFlow: 0,
+          eps: stmt.eps,
+        }));
+        setFinancialData(fData.reverse());
+
+        const rData: FinancialRatios[] = fData.map((f, i) => ({
+          year: f.year,
+          roe: (financials.ratios.roe || 0) * 100,
+          roa: (financials.ratios.roa || 0) * 100,
+          debtToEquity: financials.ratios.debtToEquity || 0,
+          currentRatio: financials.ratios.currentRatio || 0,
+          netProfitMargin: (financials.ratios.profitMargin || 0) * 100,
+          assetTurnover: 0,
+          financialLeverage: 0,
+          peRatio: financials.ratios.pe || 0,
+          pbRatio: financials.ratios.pb || 0,
+        }));
+        setRatios(rData);
+      }
+      
+      setIsLoading(false);
+    };
+
+    loadData();
+  }, [company.ticker, fetchFinancials, fetchQuotes]);
+
+  const latestRatios = ratios[ratios.length - 1] || {
+    roe: 0, roa: 0, debtToEquity: 0, currentRatio: 0, netProfitMargin: 0,
+    assetTurnover: 0, financialLeverage: 0, peRatio: 0, pbRatio: 0, year: 0
+  };
+  const previousRatios = ratios[ratios.length - 2] || latestRatios;
 
   const getRatioTrend = (current: number, previous: number, inverse: boolean = false) => {
     const diff = current - previous;
@@ -45,7 +111,7 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
     });
   };
 
-  const aiInsight = `ROE meningkat terutama karena peningkatan Net Profit Margins di Q3, didorong oleh pemotongan biaya di rantai pasokan. Leverage tetap stabil, menunjukkan pertumbuhan organik daripada ekspansi yang didanai hutang.`;
+  const aiInsight = `Analisis real-time untuk ${companyData.name}. ROE saat ini ${latestRatios.roe.toFixed(1)}% dengan P/E ratio ${latestRatios.peRatio.toFixed(1)}. Margin laba bersih berada di ${latestRatios.netProfitMargin.toFixed(1)}%.`;
 
   return (
     <div className="pb-32 min-h-dvh w-full">
@@ -57,60 +123,71 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
       />
       
       <div className="px-3 sm:px-4 space-y-4 sm:space-y-6 py-3 sm:py-4">
-        <CompanyHeader 
-          company={company} 
-          activeTimeframe={activeTimeframe}
-          onTimeframeChange={setActiveTimeframe}
-        />
-
-        <FinancialChart 
-          data={mockFinancialData} 
-          title="Ikhtisar Keuangan 5 Tahun"
-          yoyChange={5}
-        />
-
-        <section>
-          <h3 className="font-heading font-semibold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Tren Rasio Utama</h3>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <RatioCard
-              label="ROE (Return on Equity)"
-              value={`${latestRatios.roe.toFixed(0)}%`}
-              trend={getRatioTrend(latestRatios.roe, previousRatios.roe)}
-              onClick={() => onNavigate('ratio-detail', { ratio: 'roe', company })}
-            />
-            <RatioCard
-              label="Debt to Equity"
-              value={latestRatios.debtToEquity}
-              trend={getRatioTrend(latestRatios.debtToEquity, previousRatios.debtToEquity, true)}
-            />
-            <RatioCard
-              label="Net Profit Margin"
-              value={`${latestRatios.netProfitMargin.toFixed(1)}%`}
-              trend={getRatioTrend(latestRatios.netProfitMargin, previousRatios.netProfitMargin)}
-              subLabel="+0.5%"
-            />
-            <RatioCard
-              label="P/E Ratio"
-              value={latestRatios.peRatio}
-              trend="neutral"
-            />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Loading data...</span>
           </div>
-        </section>
+        ) : (
+          <>
+            <CompanyHeader 
+              company={companyData} 
+              activeTimeframe={activeTimeframe}
+              onTimeframeChange={setActiveTimeframe}
+            />
 
-        <AIInsightCard insight={aiInsight} />
+            <FinancialChart 
+              data={financialData.length > 0 ? financialData : []} 
+              title="Ikhtisar Keuangan 5 Tahun"
+              yoyChange={financialData.length > 1 
+                ? ((financialData[financialData.length-1].revenue - financialData[financialData.length-2].revenue) / financialData[financialData.length-2].revenue * 100)
+                : 0
+              }
+            />
 
-        <SWOTSection swot={mockSWOT} compact />
+            <section>
+              <h3 className="font-heading font-semibold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Tren Rasio Utama</h3>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <RatioCard
+                  label="ROE (Return on Equity)"
+                  value={`${latestRatios.roe.toFixed(0)}%`}
+                  trend={getRatioTrend(latestRatios.roe, previousRatios.roe)}
+                  onClick={() => onNavigate('ratio-detail', { ratio: 'roe', company: companyData })}
+                />
+                <RatioCard
+                  label="Debt to Equity"
+                  value={latestRatios.debtToEquity.toFixed(2)}
+                  trend={getRatioTrend(latestRatios.debtToEquity, previousRatios.debtToEquity, true)}
+                />
+                <RatioCard
+                  label="Net Profit Margin"
+                  value={`${latestRatios.netProfitMargin.toFixed(1)}%`}
+                  trend={getRatioTrend(latestRatios.netProfitMargin, previousRatios.netProfitMargin)}
+                />
+                <RatioCard
+                  label="P/E Ratio"
+                  value={latestRatios.peRatio.toFixed(1)}
+                  trend="neutral"
+                />
+              </div>
+            </section>
 
-        <ProjectionSection 
-          projections={mockProjections}
-          averageConfidence={80}
-        />
+            <AIInsightCard insight={aiInsight} />
 
-        {/* Footer info */}
-        <div className="text-center text-[10px] sm:text-xs text-muted-foreground py-3 sm:py-4">
-          <p>ID: 89332-{company.ticker}-XE • VER. 2.4.1</p>
-          <p>eko.ratrianto@gmail.com</p>
-        </div>
+            <SWOTSection swot={mockSWOT} compact />
+
+            <ProjectionSection 
+              projections={mockProjections}
+              averageConfidence={80}
+            />
+
+            {/* Footer info */}
+            <div className="text-center text-[10px] sm:text-xs text-muted-foreground py-3 sm:py-4">
+              <p>ID: 89332-{company.ticker}-XE • VER. 2.4.1</p>
+              <p>Real-time data from Yahoo Finance</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Fixed bottom button */}
