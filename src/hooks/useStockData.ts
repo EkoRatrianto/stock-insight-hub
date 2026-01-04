@@ -71,6 +71,23 @@ export interface StockFinancials {
   }[];
 }
 
+export interface StockNews {
+  uuid: string;
+  title: string;
+  publisher: string;
+  link: string;
+  providerPublishTime: number;
+  thumbnail: string | null;
+}
+
+export interface SWOTData {
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
+  summary?: string;
+}
+
 export function useStockData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +168,50 @@ export function useStockData() {
     }
   }, []);
 
+  const fetchNews = useCallback(async (symbol: string): Promise<StockNews[]> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('stock-data', {
+        body: { symbols: symbol, action: 'news' }
+      });
+      
+      if (fnError) throw fnError;
+      return data || [];
+    } catch (err: any) {
+      setError(err.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchSWOT = useCallback(async (
+    company: string, 
+    ticker: string, 
+    price?: number, 
+    changePercent?: number, 
+    sector?: string
+  ): Promise<SWOTData | null> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('swot-analysis', {
+        body: { company, ticker, price, changePercent, sector }
+      });
+      
+      if (fnError) throw fnError;
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     error,
@@ -158,5 +219,7 @@ export function useStockData() {
     fetchHistory,
     fetchFinancials,
     searchStocks,
+    fetchNews,
+    fetchSWOT,
   };
 }
