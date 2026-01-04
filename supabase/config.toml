@@ -2,3 +2,6 @@ project_id = "igiqbniesqeowgskopcs"
 
 [functions.stock-data]
 verify_jwt = false
+
+[functions.swot-analysis]
+verify_jwt = false

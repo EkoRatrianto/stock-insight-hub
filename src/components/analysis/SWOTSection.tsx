@@ -1,11 +1,12 @@
-import { Shield, AlertTriangle, Lightbulb, AlertOctagon } from 'lucide-react';
+import { Shield, AlertTriangle, Lightbulb, AlertOctagon, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { SWOTAnalysis } from '@/types/company';
+import { SWOTData } from '@/hooks/useStockData';
 import { cn } from '@/lib/utils';
 
 interface SWOTSectionProps {
-  swot: SWOTAnalysis;
+  swot: SWOTData | null;
   compact?: boolean;
+  loading?: boolean;
 }
 
 const swotConfig = [
@@ -15,28 +16,66 @@ const swotConfig = [
   { key: 'threats', label: 'ANCAMAN', icon: AlertOctagon, color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/30' },
 ] as const;
 
-export function SWOTSection({ swot, compact }: SWOTSectionProps) {
+export function SWOTSection({ swot, compact, loading }: SWOTSectionProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <h3 className="font-heading font-semibold text-foreground text-sm sm:text-base">Analisis SWOT</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {swotConfig.map(({ key, label, icon: Icon, color, bg, border }) => (
+            <Card key={key} className={cn("p-3", bg, border)}>
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={cn("h-4 w-4", color)} />
+                <span className={cn("text-xs font-semibold", color)}>{label}</span>
+              </div>
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!swot) {
+    return (
+      <div className="space-y-3">
+        <h3 className="font-heading font-semibold text-foreground text-sm sm:text-base">Analisis SWOT</h3>
+        <Card className="p-4 text-center">
+          <p className="text-sm text-muted-foreground">SWOT analysis not available</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (compact) {
     return (
-      <div className="grid grid-cols-2 gap-3">
-        {swotConfig.map(({ key, label, icon: Icon, color, bg, border }) => (
-          <Card key={key} className={cn("p-3", bg, border)}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className={cn("h-4 w-4", color)} />
-              <span className={cn("text-xs font-semibold", color)}>{label}</span>
-            </div>
-            <p className="text-xs text-foreground line-clamp-3">
-              {swot[key][0]}
-            </p>
-          </Card>
-        ))}
+      <div className="space-y-3">
+        <h3 className="font-heading font-semibold text-foreground text-sm sm:text-base">Analisis SWOT (AI)</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {swotConfig.map(({ key, label, icon: Icon, color, bg, border }) => (
+            <Card key={key} className={cn("p-3", bg, border)}>
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={cn("h-4 w-4", color)} />
+                <span className={cn("text-xs font-semibold", color)}>{label}</span>
+              </div>
+              <p className="text-xs text-foreground line-clamp-3">
+                {swot[key as keyof SWOTData]?.[0] || 'N/A'}
+              </p>
+            </Card>
+          ))}
+        </div>
+        {swot.summary && (
+          <p className="text-xs text-muted-foreground italic px-1">{swot.summary}</p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <h3 className="font-heading font-semibold text-foreground">Analisis SWOT</h3>
+      <h3 className="font-heading font-semibold text-foreground">Analisis SWOT (AI)</h3>
       <div className="grid grid-cols-2 gap-3">
         {swotConfig.map(({ key, label, icon: Icon, color, bg, border }) => (
           <Card key={key} className={cn("p-4", bg, border)}>
@@ -45,15 +84,20 @@ export function SWOTSection({ swot, compact }: SWOTSectionProps) {
               <span className={cn("text-xs font-semibold uppercase", color)}>{label}</span>
             </div>
             <ul className="space-y-2">
-              {swot[key].map((item, idx) => (
+              {(swot[key as keyof SWOTData] as string[] || []).map((item, idx) => (
                 <li key={idx} className="text-xs text-foreground leading-relaxed">
-                  {item}
+                  • {item}
                 </li>
               ))}
             </ul>
           </Card>
         ))}
       </div>
+      {swot.summary && (
+        <Card className="p-3 bg-muted/30">
+          <p className="text-xs text-muted-foreground">{swot.summary}</p>
+        </Card>
+      )}
     </div>
   );
 }

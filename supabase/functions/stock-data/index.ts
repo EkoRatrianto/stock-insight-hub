@@ -250,6 +250,39 @@ serve(async (req) => {
       });
     }
     
+    if (action === 'news') {
+      const symbol = Array.isArray(symbols) ? symbols[0] : symbols;
+      
+      console.log('Fetching news for:', symbol);
+      
+      // Use Yahoo Finance search API which includes news
+      const newsUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=10`;
+      
+      const response = await fetch(newsUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+      });
+      
+      const data = await response.json();
+      const newsItems = data.news || [];
+      
+      const formattedNews = newsItems.map((item: any) => ({
+        uuid: item.uuid,
+        title: item.title,
+        publisher: item.publisher,
+        link: item.link,
+        providerPublishTime: item.providerPublishTime,
+        thumbnail: item.thumbnail?.resolutions?.[0]?.url || null,
+      }));
+      
+      console.log(`Fetched ${formattedNews.length} news items`);
+      
+      return new Response(JSON.stringify(formattedNews), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     return new Response(JSON.stringify({ error: 'Invalid action' }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

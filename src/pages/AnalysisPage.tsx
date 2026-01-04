@@ -6,12 +6,13 @@ import { RatioCard } from '@/components/analysis/RatioCard';
 import { SWOTSection } from '@/components/analysis/SWOTSection';
 import { ProjectionSection } from '@/components/analysis/ProjectionSection';
 import { AIInsightCard } from '@/components/analysis/AIInsightCard';
+import { NewsSection } from '@/components/analysis/NewsSection';
 import { Button } from '@/components/ui/button';
 import { Download, Plus, Loader2 } from 'lucide-react';
 import { Company, FinancialData, FinancialRatios } from '@/types/company';
-import { mockSWOT, mockProjections } from '@/data/mockData';
+import { mockProjections } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
-import { useStockData, StockFinancials, StockHistory } from '@/hooks/useStockData';
+import { useStockData, SWOTData, StockNews } from '@/hooks/useStockData';
 
 interface AnalysisPageProps {
   company: Company;
@@ -21,12 +22,16 @@ interface AnalysisPageProps {
 export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
   const [activeTimeframe, setActiveTimeframe] = useState('5Y');
   const { toast } = useToast();
-  const { fetchFinancials, fetchHistory, fetchQuotes, loading } = useStockData();
+  const { fetchFinancials, fetchQuotes, fetchNews, fetchSWOT } = useStockData();
   
   const [financialData, setFinancialData] = useState<FinancialData[]>([]);
   const [ratios, setRatios] = useState<FinancialRatios[]>([]);
   const [companyData, setCompanyData] = useState<Company>(company);
   const [isLoading, setIsLoading] = useState(true);
+  const [swotData, setSwotData] = useState<SWOTData | null>(null);
+  const [swotLoading, setSwotLoading] = useState(false);
+  const [newsData, setNewsData] = useState<StockNews[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,7 +56,6 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
       // Fetch financial data
       const financials = await fetchFinancials(company.ticker);
       if (financials) {
-        // Check if we have actual financial data or just empty data
         const hasRealData = financials.incomeStatements.some(stmt => stmt.revenue !== null);
         
         if (hasRealData) {
@@ -83,7 +87,6 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
           }));
           setRatios(rData);
         } else {
-          // Use basic data from meta if available
           const metaData = (financials as any).meta;
           if (metaData) {
             setRatios([{
@@ -107,6 +110,38 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
 
     loadData();
   }, [company.ticker, fetchFinancials, fetchQuotes]);
+
+  // Fetch news separately
+  useEffect(() => {
+    const loadNews = async () => {
+      setNewsLoading(true);
+      const news = await fetchNews(company.ticker);
+      setNewsData(news);
+      setNewsLoading(false);
+    };
+    loadNews();
+  }, [company.ticker, fetchNews]);
+
+  // Fetch SWOT analysis separately (AI-powered)
+  useEffect(() => {
+    const loadSWOT = async () => {
+      setSwotLoading(true);
+      const swot = await fetchSWOT(
+        company.name, 
+        company.ticker, 
+        companyData.currentPrice, 
+        companyData.priceChangePercent, 
+        company.sector
+      );
+      setSwotData(swot);
+      setSwotLoading(false);
+    };
+    
+    // Only fetch after we have company data
+    if (!isLoading) {
+      loadSWOT();
+    }
+  }, [company.name, company.ticker, company.sector, companyData.currentPrice, companyData.priceChangePercent, fetchSWOT, isLoading]);
 
   const latestRatios = ratios[ratios.length - 1] || {
     roe: 0, roa: 0, debtToEquity: 0, currentRatio: 0, netProfitMargin: 0,
@@ -198,7 +233,9 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
 
             <AIInsightCard insight={aiInsight} />
 
-            <SWOTSection swot={mockSWOT} compact />
+            <SWOTSection swot={swotData} compact loading={swotLoading} />
+
+            <NewsSection news={newsData} loading={newsLoading} />
 
             <ProjectionSection 
               projections={mockProjections}
@@ -208,7 +245,7 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
             {/* Footer info */}
             <div className="text-center text-[10px] sm:text-xs text-muted-foreground py-3 sm:py-4">
               <p>ID: 89332-{company.ticker}-XE • VER. 2.4.1</p>
-              <p>Real-time data from Yahoo Finance</p>
+              <p>Data: Yahoo Finance • SWOT: AI Generated</p>
             </div>
           </>
         )}
