@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Filter, Plus, Loader2 } from 'lucide-react';
 import { useStockData, StockQuote } from '@/hooks/useStockData';
 import { WatchlistItem as WatchlistItemType } from '@/types/company';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HomePageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -21,6 +22,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
   const { fetchQuotes, loading } = useStockData();
   const [watchlistData, setWatchlistData] = useState<WatchlistItemType[]>([]);
   const [insightData, setInsightData] = useState<StockQuote[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,14 +50,27 @@ export function HomePage({ onNavigate }: HomePageProps) {
   }, [fetchQuotes]);
 
   const handleQuickAction = (action: string) => {
-    if (action === 'new-analysis') {
-      onNavigate('search');
+    switch (action) {
+      case 'new-analysis':
+        onNavigate('search');
+        break;
+      case 'compare':
+        onNavigate('compare');
+        break;
+      case 'reports':
+        onNavigate('reports');
+        break;
+      case 'projections':
+        onNavigate('projections');
+        break;
     }
   };
 
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Analyst';
+
   return (
     <div className="pb-24 min-h-dvh w-full">
-      <Header userName="Analyst" />
+      <Header userName={userName} />
       
       <div className="px-3 sm:px-4 space-y-5 pb-4">
         <SearchBar

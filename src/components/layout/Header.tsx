@@ -1,6 +1,8 @@
 import { Bell, ChevronLeft, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { shareContent } from '@/lib/generatePDF';
+import { useToast } from '@/hooks/use-toast';
 
 interface HeaderProps {
   title?: string;
@@ -11,11 +13,22 @@ interface HeaderProps {
 }
 
 export function Header({ title, showBack, showShare, onBack, userName }: HeaderProps) {
+  const { toast } = useToast();
+  
   const today = new Date().toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
+
+  const handleShare = () => {
+    const shareText = `Lihat analisis ${title || 'saham'} di Stock Analyzer!`;
+    shareContent(title || 'Stock Analyzer', shareText, window.location.href);
+    toast({
+      title: 'Berbagi',
+      description: 'Konten siap dibagikan!',
+    });
+  };
 
   if (showBack) {
     return (
@@ -25,7 +38,12 @@ export function Header({ title, showBack, showShare, onBack, userName }: HeaderP
         </Button>
         <h1 className="font-heading font-semibold text-sm sm:text-lg truncate max-w-[60%]">{title}</h1>
         {showShare ? (
-          <Button variant="ghost" size="icon" className="text-muted-foreground h-9 w-9 sm:h-10 sm:w-10">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground h-9 w-9 sm:h-10 sm:w-10"
+            onClick={handleShare}
+          >
             <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         ) : (
@@ -39,8 +57,10 @@ export function Header({ title, showBack, showShare, onBack, userName }: HeaderP
     <header className="sticky top-0 z-40 flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-background/95 backdrop-blur-lg safe-area-pt">
       <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
         <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/30 shrink-0">
-          <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=analyst" />
-          <AvatarFallback className="bg-primary/20 text-primary text-sm sm:text-base">AN</AvatarFallback>
+          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName || 'analyst'}`} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm sm:text-base">
+            {(userName || 'AN').slice(0, 2).toUpperCase()}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
           <h1 className="font-heading font-semibold text-foreground text-sm sm:text-base truncate">
