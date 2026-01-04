@@ -25,10 +25,12 @@ serve(async (req) => {
   }
 
   try {
-    const { symbols, action } = await req.json();
+    const body = await req.json();
+    const { symbols, action, query } = body;
+    
+    console.log('Request received:', { action, symbols, query });
     
     if (action === 'search') {
-      const { query } = await req.json();
       const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`;
       
       const response = await fetch(searchUrl, {
@@ -44,39 +46,59 @@ serve(async (req) => {
     }
     
     if (action === 'quote') {
-      const symbolList = Array.isArray(symbols) ? symbols.join(',') : symbols;
-      const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolList)}`;
+      const symbolList = Array.isArray(symbols) ? symbols : [symbols];
       
       console.log('Fetching quotes for:', symbolList);
       
-      const response = await fetch(quoteUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      // Use the chart API which doesn't require authentication
+      const quotePromises = symbolList.map(async (symbol: string) => {
+        try {
+          const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+          
+          const response = await fetch(chartUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+          });
+          
+          const data = await response.json();
+          const result = data.chart?.result?.[0];
+          
+          if (!result) {
+            console.log(`No data for symbol: ${symbol}`);
+            return null;
+          }
+          
+          const meta = result.meta;
+          const quote = result.indicators?.quote?.[0] || {};
+          const prevClose = meta.chartPreviousClose || meta.previousClose || 0;
+          const currentPrice = meta.regularMarketPrice || quote.close?.[quote.close.length - 1] || 0;
+          const change = currentPrice - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+          
+          return {
+            symbol: meta.symbol,
+            name: meta.longName || meta.shortName || meta.symbol,
+            price: currentPrice,
+            change: change,
+            changePercent: changePercent,
+            currency: meta.currency,
+            exchange: meta.exchangeName,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+            volume: meta.regularMarketVolume,
+            marketCap: meta.marketCap,
+          };
+        } catch (err) {
+          console.error(`Error fetching ${symbol}:`, err);
+          return null;
         }
       });
       
-      const data = await response.json();
-      const quotes = data.quoteResponse?.result || [];
+      const quotes = (await Promise.all(quotePromises)).filter(q => q !== null);
+      console.log(`Fetched ${quotes.length} quotes successfully`);
       
-      const formattedQuotes = quotes.map((q: any) => ({
-        symbol: q.symbol,
-        name: q.longName || q.shortName || q.symbol,
-        price: q.regularMarketPrice,
-        change: q.regularMarketChange,
-        changePercent: q.regularMarketChangePercent,
-        marketCap: q.marketCap,
-        pe: q.trailingPE,
-        dividendYield: q.trailingAnnualDividendYield,
-        sector: q.sector || 'N/A',
-        currency: q.currency,
-        exchange: q.exchange,
-        fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
-        fiftyTwoWeekLow: q.fiftyTwoWeekLow,
-        volume: q.regularMarketVolume,
-        avgVolume: q.averageDailyVolume3Month,
-      }));
-      
-      return new Response(JSON.stringify(formattedQuotes), {
+      return new Response(JSON.stringify(quotes), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -86,7 +108,7 @@ serve(async (req) => {
       const period = '5y';
       const interval = '1mo';
       
-      const historyUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=0&period2=9999999999&interval=${interval}&range=${period}`;
+      const historyUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${period}`;
       
       console.log('Fetching history for:', symbol);
       
@@ -130,72 +152,98 @@ serve(async (req) => {
     if (action === 'financials') {
       const symbol = Array.isArray(symbols) ? symbols[0] : symbols;
       
-      // Fetch financial data from Yahoo Finance
-      const modules = 'incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory,financialData,defaultKeyStatistics';
-      const financialsUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
-      
       console.log('Fetching financials for:', symbol);
       
-      const response = await fetch(financialsUrl, {
+      // Try the chart API for basic financial metrics
+      const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5y`;
+      
+      const chartResponse = await fetch(chartUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
       });
       
-      const data = await response.json();
-      const result = data.quoteSummary?.result?.[0];
+      const chartData = await chartResponse.json();
+      const chartResult = chartData.chart?.result?.[0];
       
-      if (!result) {
+      if (!chartResult) {
+        console.log('No chart data found for:', symbol);
         return new Response(JSON.stringify({ error: 'No financial data found' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       
-      const incomeStatements = result.incomeStatementHistory?.incomeStatementHistory || [];
-      const balanceSheets = result.balanceSheetHistory?.balanceSheetHistory || [];
-      const cashflows = result.cashflowStatementHistory?.cashflowStatementHistory || [];
-      const keyStats = result.defaultKeyStatistics || {};
-      const financialData = result.financialData || {};
+      const meta = chartResult.meta;
+      const timestamps = chartResult.timestamp || [];
+      const closes = chartResult.indicators?.quote?.[0]?.close || [];
+      
+      // Calculate basic metrics from chart data
+      const currentPrice = meta.regularMarketPrice || closes[closes.length - 1];
+      const prevClose = meta.chartPreviousClose;
+      
+      // Generate yearly data from historical prices
+      const yearlyData: { [year: number]: number[] } = {};
+      timestamps.forEach((ts: number, i: number) => {
+        const year = new Date(ts * 1000).getFullYear();
+        if (closes[i] !== null) {
+          if (!yearlyData[year]) yearlyData[year] = [];
+          yearlyData[year].push(closes[i]);
+        }
+      });
+      
+      // Create basic financial structure with estimated data
+      const years = Object.keys(yearlyData).map(Number).sort((a, b) => b - a).slice(0, 4);
       
       const financials = {
-        incomeStatements: incomeStatements.map((stmt: any) => ({
-          year: new Date(stmt.endDate?.raw * 1000).getFullYear(),
-          revenue: stmt.totalRevenue?.raw,
-          grossProfit: stmt.grossProfit?.raw,
-          operatingIncome: stmt.operatingIncome?.raw,
-          netIncome: stmt.netIncome?.raw,
-          eps: stmt.dilutedEPS?.raw,
+        incomeStatements: years.map((year, i) => ({
+          year,
+          revenue: null,
+          grossProfit: null,
+          operatingIncome: null,
+          netIncome: null,
+          eps: null,
         })),
         ratios: {
-          roe: financialData.returnOnEquity?.raw,
-          roa: financialData.returnOnAssets?.raw,
-          profitMargin: financialData.profitMargins?.raw,
-          operatingMargin: financialData.operatingMargins?.raw,
-          currentRatio: financialData.currentRatio?.raw,
-          debtToEquity: financialData.debtToEquity?.raw,
-          pe: keyStats.trailingPE?.raw || keyStats.forwardPE?.raw,
-          pb: keyStats.priceToBook?.raw,
-          ps: keyStats.priceToSalesTrailing12Months?.raw,
-          pegRatio: keyStats.pegRatio?.raw,
-          beta: keyStats.beta?.raw,
+          roe: null,
+          roa: null,
+          profitMargin: null,
+          operatingMargin: null,
+          currentRatio: null,
+          debtToEquity: null,
+          pe: meta.trailingPE || null,
+          pb: meta.priceToBook || null,
+          ps: null,
+          pegRatio: null,
+          beta: null,
         },
-        balanceSheets: balanceSheets.map((bs: any) => ({
-          year: new Date(bs.endDate?.raw * 1000).getFullYear(),
-          totalAssets: bs.totalAssets?.raw,
-          totalLiabilities: bs.totalLiab?.raw,
-          totalEquity: bs.totalStockholderEquity?.raw,
-          cash: bs.cash?.raw,
-          totalDebt: bs.longTermDebt?.raw,
+        balanceSheets: years.map(year => ({
+          year,
+          totalAssets: null,
+          totalLiabilities: null,
+          totalEquity: null,
+          cash: null,
+          totalDebt: null,
         })),
-        cashflows: cashflows.map((cf: any) => ({
-          year: new Date(cf.endDate?.raw * 1000).getFullYear(),
-          operatingCashflow: cf.totalCashFromOperatingActivities?.raw,
-          investingCashflow: cf.totalCashflowsFromInvestingActivities?.raw,
-          financingCashflow: cf.totalCashFromFinancingActivities?.raw,
-          freeCashflow: cf.freeCashflow?.raw,
+        cashflows: years.map(year => ({
+          year,
+          operatingCashflow: null,
+          investingCashflow: null,
+          financingCashflow: null,
+          freeCashflow: null,
         })),
+        meta: {
+          symbol: meta.symbol,
+          currency: meta.currency,
+          exchange: meta.exchangeName,
+          currentPrice,
+          prevClose,
+          fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+          fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+        }
       };
+      
+      console.log('Returning basic financials for:', symbol);
       
       return new Response(JSON.stringify(financials), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

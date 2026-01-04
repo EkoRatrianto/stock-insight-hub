@@ -51,31 +51,55 @@ export function AnalysisPage({ company, onNavigate }: AnalysisPageProps) {
       // Fetch financial data
       const financials = await fetchFinancials(company.ticker);
       if (financials) {
-        const fData: FinancialData[] = financials.incomeStatements.map((stmt) => ({
-          year: stmt.year,
-          revenue: stmt.revenue / 1000000,
-          netIncome: stmt.netIncome / 1000000,
-          totalAssets: 0,
-          totalEquity: 0,
-          totalDebt: 0,
-          operatingCashFlow: 0,
-          eps: stmt.eps,
-        }));
-        setFinancialData(fData.reverse());
+        // Check if we have actual financial data or just empty data
+        const hasRealData = financials.incomeStatements.some(stmt => stmt.revenue !== null);
+        
+        if (hasRealData) {
+          const fData: FinancialData[] = financials.incomeStatements
+            .filter(stmt => stmt.revenue !== null)
+            .map((stmt) => ({
+              year: stmt.year,
+              revenue: (stmt.revenue || 0) / 1000000,
+              netIncome: (stmt.netIncome || 0) / 1000000,
+              totalAssets: 0,
+              totalEquity: 0,
+              totalDebt: 0,
+              operatingCashFlow: 0,
+              eps: stmt.eps || 0,
+            }));
+          setFinancialData(fData.reverse());
 
-        const rData: FinancialRatios[] = fData.map((f, i) => ({
-          year: f.year,
-          roe: (financials.ratios.roe || 0) * 100,
-          roa: (financials.ratios.roa || 0) * 100,
-          debtToEquity: financials.ratios.debtToEquity || 0,
-          currentRatio: financials.ratios.currentRatio || 0,
-          netProfitMargin: (financials.ratios.profitMargin || 0) * 100,
-          assetTurnover: 0,
-          financialLeverage: 0,
-          peRatio: financials.ratios.pe || 0,
-          pbRatio: financials.ratios.pb || 0,
-        }));
-        setRatios(rData);
+          const rData: FinancialRatios[] = fData.map((f) => ({
+            year: f.year,
+            roe: (financials.ratios.roe || 0) * 100,
+            roa: (financials.ratios.roa || 0) * 100,
+            debtToEquity: financials.ratios.debtToEquity || 0,
+            currentRatio: financials.ratios.currentRatio || 0,
+            netProfitMargin: (financials.ratios.profitMargin || 0) * 100,
+            assetTurnover: 0,
+            financialLeverage: 0,
+            peRatio: financials.ratios.pe || 0,
+            pbRatio: financials.ratios.pb || 0,
+          }));
+          setRatios(rData);
+        } else {
+          // Use basic data from meta if available
+          const metaData = (financials as any).meta;
+          if (metaData) {
+            setRatios([{
+              year: new Date().getFullYear(),
+              roe: 0,
+              roa: 0,
+              debtToEquity: 0,
+              currentRatio: 0,
+              netProfitMargin: 0,
+              assetTurnover: 0,
+              financialLeverage: 0,
+              peRatio: financials.ratios.pe || 0,
+              pbRatio: financials.ratios.pb || 0,
+            }]);
+          }
+        }
       }
       
       setIsLoading(false);

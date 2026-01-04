@@ -10,6 +10,8 @@ interface FinancialChartProps {
 }
 
 export function FinancialChart({ data, title, yoyChange }: FinancialChartProps) {
+  const hasData = data.length > 0 && data.some(d => d.revenue > 0);
+  
   const chartData = data.map((d) => ({
     year: d.year.toString(),
     revenue: d.revenue / 1000,
@@ -21,6 +23,26 @@ export function FinancialChart({ data, title, yoyChange }: FinancialChartProps) 
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}T`;
     return `$${value.toFixed(0)}B`;
   };
+
+  if (!hasData) {
+    return (
+      <Card variant="gradient" className="overflow-hidden">
+        <CardHeader className="pb-2">
+          <p className="text-sm text-muted-foreground">{title}</p>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="h-48 flex items-center justify-center flex-col">
+            <p className="text-muted-foreground text-sm text-center">
+              Financial data not available
+            </p>
+            <p className="text-muted-foreground text-xs text-center mt-1">
+              Yahoo Finance API limits detailed financial statements
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card variant="gradient" className="overflow-hidden">
